@@ -522,7 +522,9 @@ no-access, read-only, read-write, and admin-access.
 
 `admin-access` has full control of the server and can make changes to users and repos.
 
-`read-write` access gets full control of repos.
+`read-write` can push and manage branches, tags, and collaborators up to its own
+access level. Deleting or renaming a repo and managing webhooks require
+`admin-access` on that repo (repo owners have it).
 
 `read-only` can read public repos.
 
@@ -672,7 +674,8 @@ Use `--mirror` or `-m` to mark the repository as a *pull* mirror.
 
 ### Deleting Repositories
 
-You can delete repositories using the `repo delete <repo>` command.
+You can delete repositories using the `repo delete <repo>` command. Requires
+`admin-access` on the repo.
 
 ```sh
 ssh -p 23231 localhost repo delete icecream
@@ -681,6 +684,7 @@ ssh -p 23231 localhost repo delete icecream
 ### Renaming Repositories
 
 Use the `repo rename <old> <new>` command to rename existing repositories.
+Requires `admin-access` on the repo.
 
 ```sh
 ssh -p 23231 localhost repo rename icecream vanilla
