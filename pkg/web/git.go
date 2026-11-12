@@ -224,6 +224,18 @@ func badCredentials(err error) bool {
 	return errors.Is(err, ErrInvalidToken) || errors.Is(err, ErrInvalidPassword)
 }
 
+// denyLFSWrite answers an LFS write by a caller without write access.
+// Anonymous callers get 401 with a challenge so git-lfs retries with
+// credentials; authenticated callers get 403.
+func denyLFSWrite(w http.ResponseWriter, r *http.Request) {
+	askCredentials(w, r)
+	if proto.UserFromContext(r.Context()) == nil {
+		renderJSON(w, http.StatusUnauthorized, lfs.ErrorResponse{Message: "credentials needed"})
+		return
+	}
+	renderJSON(w, http.StatusForbidden, lfs.ErrorResponse{Message: "write access required"})
+}
+
 // denyRead answers a caller who may not read the repository. Missing and
 // unreadable repositories get the same answer so neither is revealed.
 func denyRead(w http.ResponseWriter, r *http.Request, err error, lfsJSON bool) {
@@ -284,6 +296,10 @@ const (
 	unauthorized
 	// forbidLFSWrite answers the LFS "write access required" error.
 	forbidLFSWrite
+	// unauthorizedLFS answers an anonymous LFS write with 401 and an
+	// LFS-Authenticate challenge. git-lfs only sends credentials after a
+	// 401, so a 403 here would stop it from ever authenticating.
+	unauthorizedLFS
 )
 
 // authorize decides what to do with a request without touching the
@@ -300,6 +316,8 @@ func authorize(service git.Service, file, method string, readable bool, level ac
 			return denyUnreadable
 		case badCreds:
 			return forbid
+		case lfsNeedsWrite(file, method) && level < access.ReadWriteAccess && anonymous:
+			return unauthorizedLFS
 		case lfsNeedsWrite(file, method) && level < access.ReadWriteAccess:
 			return forbidLFSWrite
 		}
@@ -414,6 +432,9 @@ func withAccess(next http.Handler) http.HandlerFunc {
 			renderJSON(w, http.StatusForbidden, lfs.ErrorResponse{
 				Message: "write access required",
 			})
+			return
+		case unauthorizedLFS:
+			denyLFSWrite(w, r)
 			return
 		}
 
