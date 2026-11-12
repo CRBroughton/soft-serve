@@ -386,6 +386,15 @@ func cmdGit(key string) func(ts *testscript.TestScript, neg bool, args []string)
 		)
 		// Disable git prompting for credentials.
 		ts.Setenv("GIT_TERMINAL_PROMPT", "0")
+		// Isolate git from the host's system and global config, so tests
+		// behave the same everywhere (e.g. Homebrew git on macOS ships
+		// credential.helper=osxkeychain in its system config).
+		globalConfig := filepath.Join(ts.Getenv("WORK"), ".gitconfig-test")
+		if _, err := os.Stat(globalConfig); os.IsNotExist(err) {
+			ts.Check(os.WriteFile(globalConfig, nil, 0o600))
+		}
+		ts.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+		ts.Setenv("GIT_CONFIG_GLOBAL", globalConfig)
 		args = append([]string{
 			"-c", "user.email=john@example.com",
 			"-c", "user.name=John Doe",
