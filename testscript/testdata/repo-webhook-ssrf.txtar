@@ -17,6 +17,12 @@ stderr 'Created repository test-repo.*'
 # Try to create webhook with 127.0.0.1 - should fail
 ! soft repo webhook create test-repo http://127.0.0.1:8080/webhook -e push
 
+# The test suite's local webhook port is exempt only as 127.0.0.1, not
+# via other names for loopback
+! soft repo webhook create test-repo http://localhost:$WEBHOOK_PORT/webhook -e push
+! soft repo webhook create test-repo http://127.0.0.2:$WEBHOOK_PORT/webhook -e push
+! soft repo webhook create test-repo http://[::1]:$WEBHOOK_PORT/webhook -e push
+
 # Try to create webhook with AWS metadata service - should fail
 ! soft repo webhook create test-repo http://169.254.169.254/latest/meta-data/ -e push
 
@@ -32,7 +38,7 @@ soft repo webhook create test-repo $WH_PUBLIC -e push
 
 # List webhooks - should show only the valid one
 soft repo webhook list test-repo
-stdout 'webhook.site'
+stdout '127.0.0.1:.*/hook/'
 
 # Try to update webhook to localhost - should fail
 ! soft repo webhook update test-repo 1 --url http://localhost:9090/hook

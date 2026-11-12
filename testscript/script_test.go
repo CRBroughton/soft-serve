@@ -3,13 +3,13 @@ package testscript
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
@@ -140,6 +140,18 @@ func TestScript(t *testing.T) {
 
 			// This is used to set up test specific configuration and http endpoints
 			e.Setenv("SOFT_SERVE_TESTRUN", "1")
+
+			// Local webhook receiver, so webhook tests do not depend on an
+			// external service. The server's SSRF checks exempt exactly this
+			// address when SOFT_SERVE_TESTRUN is set; see pkg/ssrf.
+			whServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.Copy(io.Discard, r.Body)
+				w.WriteHeader(http.StatusOK)
+			}))
+			e.Defer(whServer.Close)
+			e.Setenv("SOFT_SERVE_TESTRUN_WEBHOOK_ADDR", whServer.Listener.Addr().String())
+			_, whPort, _ := net.SplitHostPort(whServer.Listener.Addr().String())
+			e.Setenv("WEBHOOK_PORT", whPort)
 
 			// This will disable the default lipgloss renderer colors
 			e.Setenv("SOFT_SERVE_NO_COLOR", "1")
@@ -422,27 +434,22 @@ func cmdEnvfile(ts *testscript.TestScript, neg bool, args []string) {
 	}
 }
 
+// cmdNewWebhook sets the named env var to a fresh URL on the local webhook
+// receiver started in Setup.
 func cmdNewWebhook(ts *testscript.TestScript, neg bool, args []string) {
-	type webhookSite struct {
-		UUID string `json:"uuid"`
+	if neg {
+		ts.Fatalf("unsupported: ! new-webhook")
 	}
-
 	if len(args) != 1 {
 		ts.Fatalf("usage: new-webhook <env-name>")
 	}
 
-	const whSite = "https://webhook.site"
-	req, err := http.NewRequest(http.MethodPost, whSite+"/token", nil) //nolint:noctx
-	check(ts, err, neg)
+	addr := ts.Getenv("SOFT_SERVE_TESTRUN_WEBHOOK_ADDR")
+	if addr == "" {
+		ts.Fatalf("local webhook server not running")
+	}
 
-	resp, err := http.DefaultClient.Do(req)
-	check(ts, err, neg)
-
-	defer resp.Body.Close()
-	var site webhookSite
-	check(ts, json.NewDecoder(resp.Body).Decode(&site), neg)
-
-	ts.Setenv(args[0], whSite+"/"+site.UUID)
+	ts.Setenv(args[0], fmt.Sprintf("http://%s/hook/%d", addr, rand.Int63())) //nolint:gosec
 }
 
 func cmdCurl(ts *testscript.TestScript, neg bool, args []string) {

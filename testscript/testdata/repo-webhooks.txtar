@@ -16,7 +16,7 @@ soft repo webhook create repo-123 $WH_REPO_123 -e branch_tag_create -e branch_ta
 
 # list webhooks
 soft repo webhook list repo-123
-stdout '1.*webhook.site/.*'
+stdout '1.*127.0.0.1:.*/hook/.*'
 
 # clone repo and commit files
 git clone ssh://localhost:$SSH_PORT/repo-123 repo-123
