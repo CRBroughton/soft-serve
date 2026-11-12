@@ -423,11 +423,15 @@ func TestLFSWriteChallengesAnonymous(t *testing.T) {
 		name, method, path, contentType, body string
 	}
 	requests := []request{
-		{"batch upload", http.MethodPost, "/repo.git/info/lfs/objects/batch", lfs.MediaType,
-			`{"operation":"upload","objects":[{"oid":"` + oid + `","size":7}]}`},
+		{
+			"batch upload", http.MethodPost, "/repo.git/info/lfs/objects/batch", lfs.MediaType,
+			`{"operation":"upload","objects":[{"oid":"` + oid + `","size":7}]}`,
+		},
 		{"basic upload", http.MethodPut, "/repo.git/info/lfs/objects/basic/" + oid, "application/octet-stream", "payload"},
-		{"lock create", http.MethodPost, "/repo.git/info/lfs/locks", lfs.MediaType,
-			`{"path":"a.bin","ref":{"name":"refs/heads/main"}}`},
+		{
+			"lock create", http.MethodPost, "/repo.git/info/lfs/locks", lfs.MediaType,
+			`{"path":"a.bin","ref":{"name":"refs/heads/main"}}`,
+		},
 		{"locks verify", http.MethodPost, "/repo.git/info/lfs/locks/verify", lfs.MediaType, `{}`},
 	}
 
