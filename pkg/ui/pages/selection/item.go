@@ -167,6 +167,8 @@ func (d *ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem lis
 	title = common.TruncateString(title, m.Width()-styles.Base.GetHorizontalFrameSize())
 	if i.repo.IsPrivate() {
 		title += " 🔒"
+	} else {
+		title += " 📖"
 	}
 	if isSelected {
 		title += " "
