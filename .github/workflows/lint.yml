@@ -5,8 +5,11 @@ on:
 
 jobs:
   lint:
-    uses: charmbracelet/meta/.github/workflows/lint.yml@main
-    with:
-      golangci_path: .golangci.yml
-      golangci_version: latest
-      timeout: 10m
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v23
+      - name: Lint
+        run: nix develop --command task lint
