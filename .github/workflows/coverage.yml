@@ -27,12 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: ^1
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v23
 
       - name: Test
+        shell: nix develop --command bash -e {0}
         run: |
           # We collect coverage data from two sources,
           # 1) unit tests 2) integration tests
