@@ -1,31 +1,9 @@
-# yaml-language-server: $schema=https://goreleaser.com/static/schema-pro.json
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 
 version: 2
 
-variables:
-  main: "./cmd/soft"
-  binary_name: soft
-  description: "A tasty, self-hostable Git server for the command line🍦"
-  github_url: "https://github.com/charmbracelet/soft-serve"
-  maintainer: "Ayman Bagabas <ayman@charm.sh>"
-  brew_commit_author_name: "Ayman Bagabas"
-  brew_commit_author_email: "ayman@charm.sh"
-  homepage: "https://charm.land/"
-  brew_owner: charmbracelet
-  docker_io_registry_owner: charmcli
-  ghcr_io_registry_owner: charmbracelet
-  aur_project_name: ""
-
 metadata:
   mod_timestamp: "{{ .CommitTimestamp }}"
-  license: "MIT"
-  homepage: "{{ .Var.homepage }}"
-  description: "{{ .Var.description }}"
-  maintainers:
-    - "{{ .Var.maintainer }}"
-  commit_author:
-    name: "Charm"
-    email: "charmcli@users.noreply.github.com"
 
 before:
   hooks:
@@ -34,19 +12,19 @@ before:
     - mkdir completions
     - rm -rf manpages
     - mkdir manpages
-    - sh -c 'go run {{ with .Var.main }}{{ . }}{{ else }}.{{ end }} completion "bash" >./completions/{{ .ProjectName }}.bash'
-    - sh -c 'go run {{ with .Var.main }}{{ . }}{{ else }}.{{ end }} completion "zsh" >./completions/{{ .ProjectName }}.zsh'
-    - sh -c 'go run {{ with .Var.main }}{{ . }}{{ else }}.{{ end }} completion "fish" >./completions/{{ .ProjectName }}.fish'
-    - sh -c 'go run {{ with .Var.main }}{{ . }}{{ else }}.{{ end }} man | gzip -c >./manpages/{{ .ProjectName }}.1.gz'
+    - sh -c 'go run ./cmd/soft completion "bash" >./completions/{{ .ProjectName }}.bash'
+    - sh -c 'go run ./cmd/soft completion "zsh" >./completions/{{ .ProjectName }}.zsh'
+    - sh -c 'go run ./cmd/soft completion "fish" >./completions/{{ .ProjectName }}.fish'
+    - sh -c 'go run ./cmd/soft man | gzip -c >./manpages/{{ .ProjectName }}.1.gz'
 
 gomod:
   proxy: true
 
 builds:
-  - binary: "{{ with .Var.binary_name }}{{ . }}{{ else }}{{ .ProjectName }}{{ end }}"
+  - binary: soft
     env:
       - CGO_ENABLED=0
-    main: "{{ with .Var.main }}{{ . }}{{ else }}.{{ end }}"
+    main: ./cmd/soft
     ldflags: -s -w -X main.Version=v{{ .Version }} -X main.CommitSHA={{ .Commit }} -X main.CommitDate={{ .CommitDate }}
     goos:
       - linux
@@ -127,20 +105,16 @@ nfpms:
       signature:
         key_file: '{{ if ne (index .Env "GPG_KEY_PATH") "" }}{{ .Env.GPG_KEY_PATH }}{{ else }}{{ end }}'
 
-furies:
-  - account: "{{ with .Env.FURY_TOKEN }}charmcli{{ else }}{{ end }}"
-    secret_name: FURY_TOKEN
-
 brews:
   - repository:
-      owner: "{{ .Var.brew_owner }}"
+      owner: charmbracelet
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     dependencies:
       - name: git
       - name: bash
     install: |-
-      bin.install "{{ with .Var.binary_name }}{{ . }}{{ else }}{{ .ProjectName }}{{ end }}"
+      bin.install "soft"
       bash_completion.install "completions/{{ .ProjectName }}.bash" => "{{ .ProjectName }}"
       zsh_completion.install "completions/{{ .ProjectName }}.zsh" => "_{{ .ProjectName }}"
       fish_completion.install "completions/{{ .ProjectName }}.fish"
@@ -148,16 +122,16 @@ brews:
 
 scoops:
   - repository:
-      owner: "{{ .Var.brew_owner }}"
+      owner: charmbracelet
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
       name: scoop-bucket
     depends:
       - git
 
 aurs:
-  - name: "{{ with .Var.aur_project_name }}{{ . }}{{ else }}{{ .ProjectName }}{{ end }}-bin"
+  - name: "{{ .ProjectName }}-bin"
     private_key: "{{ .Env.AUR_KEY }}"
-    git_url: "ssh://aur@aur.archlinux.org/{{ with .Var.aur_project_name }}{{ . }}{{ else }}{{ .ProjectName }}{{ end }}-bin.git"
+    git_url: "ssh://aur@aur.archlinux.org/{{ .ProjectName }}-bin.git"
     depends:
       - git
       - bash
@@ -183,7 +157,7 @@ aurs:
 
 nix:
   - repository:
-      owner: "{{ .Var.brew_owner }}"
+      owner: charmbracelet
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
       name: nur
     extra_install: |-
@@ -194,14 +168,13 @@ winget:
   - publisher: charmbracelet
     copyright: Charmbracelet, Inc
     repository:
-      owner: "{{ .Var.brew_owner }}"
+      owner: charmbracelet
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
       name: winget-pkgs
       branch: "{{.ProjectName}}-{{.Version}}"
       pull_request:
         enabled: true
         draft: false
-        check_boxes: true
         base:
           owner: microsoft
           name: winget-pkgs
@@ -220,9 +193,6 @@ sboms:
 
 snapshot:
   version_template: "{{ incpatch .Version }}-snapshot"
-
-nightly:
-  version_template: "{{ incpatch .Version }}-devel"
 
 changelog:
   sort: asc
@@ -278,13 +248,13 @@ signs:
 
 dockers:
   - image_templates:
-      - "{{ if not .IsNightly }}docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-amd64{{ end }}"
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-amd64"
+      - "{{ if not .IsNightly }}docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-amd64{{ end }}"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-amd64"
     goarch: amd64
     build_flag_templates:
       - --platform=linux/amd64
       - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description={{ .Var.description }}
+      - --label=org.opencontainers.image.description=A tasty, self-hostable Git server for the command line🍦
       - --label=org.opencontainers.image.source={{ .GitURL }}
       - --label=org.opencontainers.image.version=v{{ .Version }}
       - --label=org.opencontainers.image.created={{ .Date }}
@@ -293,13 +263,13 @@ dockers:
     dockerfile: Dockerfile
     use: buildx
   - image_templates:
-      - "{{ if not .IsNightly }}docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-arm64{{ end }}"
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-arm64"
+      - "{{ if not .IsNightly }}docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-arm64{{ end }}"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-arm64"
     goarch: arm64
     build_flag_templates:
       - --platform=linux/arm64
       - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description={{ .Var.description }}
+      - --label=org.opencontainers.image.description=A tasty, self-hostable Git server for the command line🍦
       - --label=org.opencontainers.image.source={{ .GitURL }}
       - --label=org.opencontainers.image.version=v{{ .Version }}
       - --label=org.opencontainers.image.created={{ .Date }}
@@ -308,14 +278,14 @@ dockers:
     dockerfile: Dockerfile
     use: buildx
   - image_templates:
-      - "{{ if not .IsNightly }}docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-armv7{{ end }}"
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-armv7"
+      - "{{ if not .IsNightly }}docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-armv7{{ end }}"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-armv7"
     goarch: arm
     goarm: "7"
     build_flag_templates:
       - --platform=linux/arm/v7
       - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description={{ .Var.description }}
+      - --label=org.opencontainers.image.description=A tasty, self-hostable Git server for the command line🍦
       - --label=org.opencontainers.image.source={{ .GitURL }}
       - --label=org.opencontainers.image.version=v{{ .Version }}
       - --label=org.opencontainers.image.created={{ .Date }}
@@ -325,36 +295,36 @@ dockers:
     use: buildx
 
 docker_manifests:
-  - name_template: "{{ if not .IsNightly }}docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:latest{{ end }}"
+  - name_template: "{{ if not .IsNightly }}docker.io/charmcli/{{ .ProjectName }}:latest{{ end }}"
     image_templates:
-      - "docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-amd64"
-      - "docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-arm64"
-      - "docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-armv7"
-  - name_template: "{{ if not .IsNightly }}ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:latest{{ end }}"
+      - "docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-amd64"
+      - "docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-arm64"
+      - "docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-armv7"
+  - name_template: "{{ if not .IsNightly }}ghcr.io/charmbracelet/{{ .ProjectName }}:latest{{ end }}"
     image_templates:
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-amd64"
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-arm64"
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-armv7"
-  - name_template: "{{ if not .IsNightly }}docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Major }}.{{ .Minor }}{{ end }}"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-amd64"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-arm64"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-armv7"
+  - name_template: "{{ if not .IsNightly }}docker.io/charmcli/{{ .ProjectName }}:v{{ .Major }}.{{ .Minor }}{{ end }}"
     image_templates:
-      - "docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-amd64"
-      - "docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-arm64"
-      - "docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-armv7"
-  - name_template: "{{ if not .IsNightly }}ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Major }}.{{ .Minor }}{{ end }}"
+      - "docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-amd64"
+      - "docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-arm64"
+      - "docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-armv7"
+  - name_template: "{{ if not .IsNightly }}ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Major }}.{{ .Minor }}{{ end }}"
     image_templates:
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-amd64"
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-arm64"
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-armv7"
-  - name_template: "{{ if not .IsNightly }}docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}{{ end }}"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-amd64"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-arm64"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-armv7"
+  - name_template: "{{ if not .IsNightly }}docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}{{ end }}"
     image_templates:
-      - "docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-amd64"
-      - "docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-arm64"
-      - "docker.io/{{ .Var.docker_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-armv7"
-  - name_template: "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}"
+      - "docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-amd64"
+      - "docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-arm64"
+      - "docker.io/charmcli/{{ .ProjectName }}:v{{ .Version }}-armv7"
+  - name_template: "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}"
     image_templates:
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-amd64"
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-arm64"
-      - "ghcr.io/{{ .Var.ghcr_io_registry_owner }}/{{ .ProjectName }}:v{{ .Version }}-armv7"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-amd64"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-arm64"
+      - "ghcr.io/charmbracelet/{{ .ProjectName }}:v{{ .Version }}-armv7"
 
 docker_signs:
   - cmd: cosign
@@ -370,6 +340,3 @@ git:
 
 release:
   prerelease: auto
-  footer:
-    from_url:
-      url: https://raw.githubusercontent.com/charmbracelet/meta/main/footer.md
