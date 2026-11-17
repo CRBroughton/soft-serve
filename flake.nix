@@ -45,6 +45,7 @@
               golangci-lint
               go-task
               git
+              git-lfs
               gh
             ];
           };
