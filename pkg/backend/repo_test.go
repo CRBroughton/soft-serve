@@ -10,9 +10,12 @@ import (
 	"time"
 
 	"github.com/charmbracelet/soft-serve/git"
+	"github.com/charmbracelet/soft-serve/pkg/config"
 	"github.com/charmbracelet/soft-serve/pkg/db"
 	"github.com/charmbracelet/soft-serve/pkg/proto"
 	"github.com/charmbracelet/soft-serve/pkg/ssrf"
+	"github.com/charmbracelet/soft-serve/pkg/store"
+	"github.com/charmbracelet/soft-serve/pkg/webhook"
 	"github.com/matryer/is"
 )
 
@@ -267,6 +270,44 @@ func TestImportRepositoryDisabled(t *testing.T) {
 			is.Equal(err.Error(), proto.ErrImportsDisabled.Error())
 			_, err = be.Repository(ctx, "gated")
 			is.True(errors.Is(err, proto.ErrRepoNotFound))
+		})
+	}
+}
+
+// TestRepositoryEventAnonymousUser verifies that repository webhook events
+// can be constructed for an anonymous (nil) user for the rename, delete,
+// and visibility-change actions.
+func TestRepositoryEventAnonymousUser(t *testing.T) {
+	is := is.New(t)
+
+	be, cfg := newTestBackend(t)
+
+	// NewRepositoryEvent creates a repository event by resolving the repository owner
+	// (via the database and store) and URLs (via config) from the provided context.
+	ctx := config.WithContext(context.Background(), cfg)
+	ctx = db.WithContext(ctx, be.db)
+	ctx = store.WithContext(ctx, be.store)
+
+	repo, err := be.CreateRepository(ctx, "anon-repo", nil, proto.RepositoryOptions{})
+	is.NoErr(err)
+
+	tests := []struct {
+		name   string
+		action webhook.RepositoryEventAction
+	}{
+		{"rename", webhook.RepositoryEventActionRename},
+		{"delete", webhook.RepositoryEventActionDelete},
+		{"visibility change", webhook.RepositoryEventActionVisibilityChange},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			is := is.New(t)
+
+			payload, err := webhook.NewRepositoryEvent(ctx, nil, repo, tt.action)
+			is.NoErr(err)
+			is.Equal(payload.Action, tt.action)
+			is.Equal(payload.Sender.ID, int64(-1))
 		})
 	}
 }
