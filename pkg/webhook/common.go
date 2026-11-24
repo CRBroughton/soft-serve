@@ -40,6 +40,14 @@ type User struct {
 	Username string `json:"username" url:"username"`
 }
 
+// anonymousUser represents a default anonymous user.
+func anonymousUser() User {
+	return User{
+		ID:       -1,
+		Username: "anonymous",
+	}
+}
+
 // Repository represents an event repository.
 type Repository struct {
 	// ID is the repository ID.
