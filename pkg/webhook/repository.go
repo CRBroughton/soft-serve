@@ -41,6 +41,14 @@ func NewRepositoryEvent(ctx context.Context, user proto.User, repo proto.Reposit
 		event = EventRepository
 	}
 
+	sender := anonymousUser()
+	if user != nil {
+		sender = User{
+			ID:       user.ID(),
+			Username: user.Username(),
+		}
+	}
+
 	payload := RepositoryEvent{
 		Action: action,
 		Common: Common{
@@ -54,10 +62,7 @@ func NewRepositoryEvent(ctx context.Context, user proto.User, repo proto.Reposit
 				CreatedAt:   repo.CreatedAt(),
 				UpdatedAt:   repo.UpdatedAt(),
 			},
-			Sender: User{
-				ID:       user.ID(),
-				Username: user.Username(),
-			},
+			Sender: sender,
 		},
 	}
 
